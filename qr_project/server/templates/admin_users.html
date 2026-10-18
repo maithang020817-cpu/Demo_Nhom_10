@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block h1 %}👥 Tài khoản & phân quyền{% endblock %}
+{% macro roleopts(sel) %}{% for k,v in ROLES.items() %}<option value="{{k}}" {{ 'selected' if sel==k }}>{{ v }}</option>{% endfor %}{% endmacro %}
+{% macro branchopts(sel) %}<option value="">Tất cả chi nhánh</option>{% for b in all_branches %}<option value="{{b.id}}" {{ 'selected' if sel==b.id }}>{{ b.name }}</option>{% endfor %}{% endmacro %}
+{% block body %}
+<div class="card"><b>Quyền của từng vai trò</b>
+<ul style="margin:6px 0">
+<li><b>Khách</b>: không đăng nhập — quét QR, chọn món, gửi đơn, xem đơn, thanh toán, đánh giá.</li>
+<li><b>Nhân viên</b>: xem đơn khách gọi, gọi món giúp khách, xem/in hóa đơn, xác nhận thanh toán.</li>
+<li><b>Bếp</b>: nhận đơn, bấm “Nhận làm” và tick “Đã lên món”.</li>
+<li><b>Quản trị</b>: tất cả + hủy đơn, thêm/sửa món, chi nhánh, tài khoản, báo cáo.</li></ul></div>
+<form method="post" class="card"><b>➕ Thêm tài khoản</b>
+<div class="row"><input name="username" placeholder="Tên đăng nhập" required>
+<input name="password" type="text" placeholder="Mật khẩu (≥ 4 ký tự)" required>
+<input name="name" placeholder="Tên hiển thị"></div>
+<div class="row"><select name="role">{{ roleopts('staff') }}</select>
+<select name="branch_id">{{ branchopts(none) }}</select>
+<button class="btn sm">Thêm</button></div></form>
+{% for r in rows %}
+<div class="card"><form method="post"><b>{{ r.username }}</b> <input type="hidden" name="id" value="{{ r.id }}">
+<div class="row"><input name="name" value="{{ r.name or '' }}" placeholder="Tên hiển thị">
+<select name="role">{{ roleopts(r.role) }}</select>
+<select name="branch_id">{{ branchopts(r.branch_id) }}</select>
+<input name="password" placeholder="Mật khẩu mới (bỏ trống = giữ)">
+<button class="btn sm">Lưu</button></div></form>
+{% if r.id != user.id %}<form method="post" action="/admin/users/{{ r.id }}/delete" onsubmit="return confirm('Xóa tài khoản {{ r.username }}?')"><button class="btn sm red">Xóa</button></form>{% endif %}</div>
+{% endfor %}
+{% endblock %}

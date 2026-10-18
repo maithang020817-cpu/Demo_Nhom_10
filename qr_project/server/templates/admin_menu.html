@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block h1 %}📋 Quản lý thực đơn{% endblock %}
+{% block body %}
+<datalist id="cats">{% for c in cats %}<option value="{{ c }}">{% endfor %}</datalist>
+<form method="post" action="/admin/menu/save" enctype="multipart/form-data" class="card">
+<b>➕ Thêm món mới</b>
+<div class="row"><input name="name" placeholder="Tên món" required style="flex:1"><input name="price" type="number" placeholder="Giá (đ)" required style="width:110px"></div>
+<div class="row"><input name="category" list="cats" placeholder="Nhóm món (vd: Món mặn)" required style="flex:1"><input name="emoji" placeholder="Emoji" size="3"></div>
+<div class="row"><label>📷 Hình món: <input type="file" name="image" accept="image/*"></label></div>
+<button class="btn sm">Thêm món</button>
+<div class="mu" style="margin-top:6px">Nhóm món tự tạo khi bạn gõ tên mới. Ảnh .jpg .png .webp, tối đa 6MB. Không có ảnh thì dùng emoji.</div>
+</form>
+<form method="post" action="/admin/menu/clear" onsubmit="return confirm('Xóa TOÀN BỘ món của chi nhánh này?')"><button class="btn sm red">🗑️ Xóa hết món mẫu</button></form><br>
+{% for i in items %}
+<div class="card">
+<div class="row" style="margin:0 0 6px">{% if i.image %}<img class="ph" src="/static/uploads/{{ i.image }}" alt="">{% else %}<span style="font-size:34px">{{ i.emoji }}</span>{% endif %}<b>{{ i.name }}</b>{% if not i.available %} <span class="badge s-cancelled">Hết món</span>{% endif %}</div>
+<form method="post" action="/admin/menu/save" enctype="multipart/form-data">
+<input type="hidden" name="id" value="{{ i.id }}">
+<div class="row"><input name="name" value="{{ i.name }}" required style="flex:1"><input name="price" type="number" value="{{ i.price }}" style="width:100px"></div>
+<div class="row"><input name="category" list="cats" value="{{ i.category }}" style="flex:1"><input name="emoji" value="{{ i.emoji }}" size="3"></div>
+<div class="row"><label>📷 Đổi hình: <input type="file" name="image" accept="image/*"></label>
+{% if i.image %}<label><input type="checkbox" name="remove_image"> Xóa hình</label>{% endif %}</div>
+<button class="btn sm">Lưu</button></form>
+<div class="row">
+<form method="post" action="/admin/menu/{{i.id}}/toggle"><button class="btn sm {{ 'gray' if i.available else 'green' }}">{{ 'Đánh dấu hết món' if i.available else 'Có món lại' }}</button></form>
+<form method="post" action="/admin/menu/{{i.id}}/delete" onsubmit="return confirm('Xóa món này?')"><button class="btn sm red">Xóa</button></form></div>
+</div>
+{% endfor %}
+{% endblock %}

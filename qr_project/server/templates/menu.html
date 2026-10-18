@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block h1 %}🍽️ {{ br.name }} · Bàn {{ t }}{% endblock %}
+{% block body %}
+<input class="search" id="search" placeholder="🔍 Tìm món..." oninput="filter()">
+<div class="chips">{% for cat in cats %}<a href="#c{{ loop.index }}">{{ cat }}</a>{% endfor %}
+<a href="/b/{{br.id}}/table/{{t}}/orders">📄 Đơn của bàn</a>
+<a href="/b/{{br.id}}/table/{{t}}/pay">💳 Thanh toán</a></div>
+{% for cat, items in cats.items() %}
+<h2 id="c{{ loop.index }}">{{ cat }}</h2>
+{% for i in items %}
+<div class="item {{ '' if i.available else 'off' }}" data-name="{{ i.name|lower }}">
+  {% if i.image %}<img class="ph" src="/static/uploads/{{ i.image }}" alt="{{ i.name }}">{% else %}<div class="emoji">{{ i.emoji }}</div>{% endif %}
+  <div class="info"><div class="name">{{ i.name }}</div><div class="price">{{ i.price|vnd }}</div>
+  {% if i.cnt %}<div class="avg">★ {{ '%.1f'|format(i.avg) }} ({{ i.cnt }})</div>{% endif %}</div>
+  {% if i.available %}
+  <div class="qty">
+    <button class="minus" onclick="change({{i.id}},-1)">−</button>
+    <span id="q{{i.id}}">0</span>
+    <button onclick="change({{i.id}},1)">+</button>
+  </div>{% else %}<b style="color:#e03131">Hết món</b>{% endif %}
+</div>
+{% endfor %}{% endfor %}
+<button class="fab" title="Gọi nhân viên" onclick="callStaff()">🔔</button>
+<div class="bar">
+  <textarea id="note" placeholder="Ghi chú (ít cay, không hành...)"></textarea>
+  <button class="btn" onclick="send()">Gọi món <span id="total">0đ</span></button>
+</div>
+<script>
+const BRANCH={{ br.id }}, TABLE={{ t }}, KEY='cart'+BRANCH+'_'+TABLE;
+const PRICES={{ prices|tojson }};
+let cart=JSON.parse(localStorage.getItem(KEY)||'{}');
+function render(){
+  let tt=0;
+  for(const id in PRICES){const el=document.getElementById('q'+id);if(el)el.textContent=cart[id]||0;tt+=(cart[id]||0)*PRICES[id];}
+  document.getElementById('total').textContent=tt.toLocaleString('vi-VN')+'đ';
+  localStorage.setItem(KEY,JSON.stringify(cart));
+}
+function change(id,d){cart[id]=Math.max(0,(cart[id]||0)+d);render();}
+function filter(){
+  const q=document.getElementById('search').value.toLowerCase();
+  document.querySelectorAll('.item').forEach(e=>e.style.display=e.dataset.name.includes(q)?'':'none');
+}
+async function send(){
+  const items=Object.entries(cart).filter(([k,v])=>v>0&&PRICES[k]).map(([k,v])=>({id:+k,qty:v}));
+  if(!items.length){alert('Bạn chưa chọn món!');return;}
+  const r=await fetch('/api/order',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({branch:BRANCH,table:TABLE,items,note:document.getElementById('note').value})});
+  const j=await r.json();
+  if(j.order_id){localStorage.removeItem(KEY);location.href='/order/'+j.order_id;}else alert(j.error);
+}
+async function callStaff(){
+  await fetch('/api/call',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({branch:BRANCH,table:TABLE})});
+  alert('Đã gọi nhân viên, vui lòng đợi trong giây lát!');
+}
+render();
+</script>
+{% endblock %}

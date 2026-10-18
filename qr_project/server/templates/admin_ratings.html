@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block h1 %}⭐ Đánh giá món{% endblock %}
+{% block body %}
+<div class="card"><b>Điểm trung bình</b>
+{% for r in avg %}<div class="row"><span style="flex:1">{{ r.item_name }}</span><span class="avg">★ {{ '%.1f'|format(r.a) }}</span><small>({{ r.c }} lượt)</small></div>
+{% else %}<p>Chưa có đánh giá.</p>{% endfor %}</div>
+<div class="card"><b>💬 Nhận xét gần đây</b>
+{% for c in cm %}<p>{{ '★'*c.stars }} <b>{{ c.item_name }}</b> (đơn #{{ c.order_id }})<br><i>{{ c.comment }}</i></p>
+{% else %}<p>Chưa có nhận xét.</p>{% endfor %}</div>
+{% endblock %}

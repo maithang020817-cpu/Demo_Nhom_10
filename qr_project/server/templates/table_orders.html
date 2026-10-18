@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block h1 %}📄 Đơn của bàn {{ t }}{% endblock %}
+{% block body %}
+{% if not data %}<div class="card">Bàn chưa có đơn nào.</div>{% endif %}
+{% for o, items in data %}
+<div class="card"><a href="/order/{{o.id}}">Đơn #{{ o.id }}</a> · {{ o.created[11:16] }} · <span class="badge {{o.status}}">{{ status[o.status] }}</span>
+{% for i in items %}<div>{{ i.qty }} × {{ i.name }}</div>{% endfor %}
+<b>{{ o.total|vnd }}</b></div>
+{% endfor %}
+<div class="card"><b>Tạm tính cả bàn: {{ total|vnd }}</b></div>
+<a class="btn" href="/b/{{ br.id }}/table/{{ t }}">+ Gọi thêm món</a>
+<a class="btn green" href="/b/{{ br.id }}/table/{{ t }}/pay">💳 Thanh toán</a>
+{% endblock %}

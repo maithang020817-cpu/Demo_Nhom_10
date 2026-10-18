@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block h1 %}➕ Gọi món cho bàn · {{ br.name }}{% endblock %}
+{% block body %}
+<div class="card">Chọn bàn, rồi chọn món giúp khách và bấm gửi đơn.</div>
+<div class="grid">{% for t in range(1, br.tables+1) %}<a class="btn" href="/b/{{br.id}}/table/{{t}}">Bàn {{t}}</a>{% endfor %}</div>
+{% endblock %}

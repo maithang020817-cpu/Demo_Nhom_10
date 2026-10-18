@@ -1,0 +1,24 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}Gọi món QR{% endblock %}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+{% block head %}{% endblock %}</head><body>
+<header><h1>{% block h1 %}🍽️ Gọi món QR{% endblock %}</h1>
+{% if user %}<nav class="noprint">
+{% if user.role=='admin' %}
+<select onchange="location='/admin/branch/'+this.value">
+{% for b in all_branches %}<option value="{{b.id}}" {{ 'selected' if b.id==cur_bid }}>{{ b.name }}</option>{% endfor %}</select>
+<a href="/admin">📊 Tổng quan</a><a href="/staff">🧑‍💼 Nhân viên</a><a href="/kitchen">👨‍🍳 Bếp</a>
+<a href="/admin/tables">💵 Thanh toán</a><a href="/admin/menu">📋 Thực đơn</a>
+<a href="/admin/ratings">⭐ Đánh giá</a><a href="/admin/branches">🏪 Chi nhánh</a>
+<a href="/admin/users">👥 Tài khoản</a><a href="/qr">🖨️ QR</a>
+{% elif user.role=='staff' %}
+<a href="/staff">🧑‍💼 Đơn của khách</a><a href="/staff/order">➕ Gọi món cho bàn</a>
+<a href="/admin/tables">💵 Thanh toán</a>
+{% elif user.role=='kitchen' %}
+<a href="/kitchen">👨‍🍳 Màn hình bếp</a>
+{% endif %}
+<a href="/logout">🚪 Thoát ({{ user.username }} · {{ ROLES[user.role] }})</a></nav>{% endif %}</header>
+<main>{% for m in get_flashed_messages() %}<div class="alert">{{ m }}</div>{% endfor %}
+{% block body %}{% endblock %}</main>
+</body></html>

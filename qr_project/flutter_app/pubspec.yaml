@@ -1,0 +1,24 @@
+name: qr_order_app
+description: Ung dung goi mon tai ban bang ma QR (Flutter)
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.2.1
+  mobile_scanner: ^5.2.3
+  qr_flutter: ^4.1.0
+  shared_preferences: ^2.2.3
+  google_fonts: ^6.2.1
+  webview_flutter: ^4.10.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true

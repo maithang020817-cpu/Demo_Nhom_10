@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block h1 %}Đơn #{{ o.id }} · Bàn {{ o.table_no }}{% endblock %}
+{% block body %}
+<div class="card">Trạng thái: <span class="badge {{o.status}}">{{ status[o.status] }}</span>
+<p style="font-size:13px;color:#666">Trang tự cập nhật khi bếp xử lý đơn.</p></div>
+<div class="card">
+{% for i in items %}<div>{{ i.qty }} × {{ i.name }} — {{ (i.price*i.qty)|vnd }}</div>{% endfor %}
+{% if o.note %}<hr><i>Ghi chú: {{ o.note }}</i>{% endif %}
+<hr><b>Tổng: {{ o.total|vnd }}</b></div>
+
+{% if o.status=='served' %}
+{% if rated %}<div class="card">✅ Cảm ơn bạn đã đánh giá!</div>
+{% else %}
+<div class="card"><b>⭐ Đánh giá món ăn</b>
+{% for i in items %}<div class="row" style="margin-top:8px"><span style="flex:1">{{ i.name }}</span>
+<span class="stars" data-name="{{ i.name }}" data-v="0">{% for s in range(1,6) %}<i onclick="setStar(this,{{s}})">☆</i>{% endfor %}</span></div>{% endfor %}
+<textarea id="cmt" placeholder="Nhận xét của bạn (không bắt buộc)" style="width:100%;margin:8px 0;padding:8px"></textarea>
+<button class="btn" onclick="sendRating()">Gửi đánh giá</button></div>
+{% endif %}{% endif %}
+
+<a class="btn gray" href="/b/{{ o.branch_id }}/table/{{ o.table_no }}">+ Gọi thêm món</a>
+<a class="btn gray" href="/b/{{ o.branch_id }}/table/{{ o.table_no }}/pay">💳 Thanh toán</a>
+<script>
+setInterval(async()=>{
+  const j=await (await fetch('/api/order/{{o.id}}')).json();
+  if(j.status!=='{{o.status}}')location.reload();
+},4000);
+function setStar(el,v){
+  const p=el.parentElement;p.dataset.v=v;
+  [...p.children].forEach((c,i)=>c.textContent=i<v?'★':'☆');
+}
+async function sendRating(){
+  const ratings=[...document.querySelectorAll('.stars')].filter(s=>+s.dataset.v>0)
+    .map(s=>({name:s.dataset.name,stars:+s.dataset.v}));
+  if(!ratings.length){alert('Hãy chọn số sao!');return;}
+  const r=await fetch('/api/rating',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({order_id:{{o.id}},ratings,comment:document.getElementById('cmt').value})});
+  if(r.ok)location.reload();else alert((await r.json()).error);
+}
+</script>
+{% endblock %}

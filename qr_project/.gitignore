@@ -1,0 +1,3 @@
+server/.secret_key
+server/restaurant.db
+__pycache__/

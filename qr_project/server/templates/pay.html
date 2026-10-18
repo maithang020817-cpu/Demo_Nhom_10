@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block h1 %}💳 Thanh toán · Bàn {{ t }}{% endblock %}
+{% block body %}
+{% if total==0 %}<div class="card">Bàn chưa có khoản nào cần thanh toán.</div>
+{% else %}
+<div class="card qrbox"><b style="font-size:22px;color:#e8590c">{{ total|vnd }}</b>
+<p>Mở app ngân hàng → quét mã VietQR</p>
+<img src="/b/{{ br.id }}/table/{{ t }}/pay.png" alt="VietQR">
+<p>{{ bank }} · {{ br.bank_account }}<br><b>{{ br.bank_holder }}</b></p>
+<button class="btn green" onclick="paid()">Tôi đã chuyển khoản</button>
+<p style="font-size:13px;color:#666">Hoặc gọi nhân viên để trả tiền mặt.</p></div>{% endif %}
+<a class="btn gray" href="/b/{{ br.id }}/table/{{ t }}">← Về thực đơn</a>
+<script>
+async function paid(){
+  await fetch('/api/call',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({branch:{{br.id}},table:{{t}},kind:'pay'})});
+  alert('Đã báo nhân viên, vui lòng đợi xác nhận!');
+}
+</script>
+{% endblock %}

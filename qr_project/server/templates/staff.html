@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block h1 %}🧑‍💼 Đơn của khách{% endblock %}
+{% block body %}
+<button class="btn gray sm" id="snd" onclick="enableSound()">🔇 Bật âm báo</button>
+{% for c in calls %}
+<div class="alert">{{ '💳 Bàn %s báo đã chuyển khoản — kiểm tra rồi bấm Đã thanh toán'|format(c.table_no) if c.kind=='pay' else '🔔 Bàn %s gọi nhân viên'|format(c.table_no) }}
+<form method="post" action="/kitchen/call/{{c.id}}/done" style="display:inline"><button class="btn sm">Đã xử lý</button></form></div>
+{% endfor %}
+{% if not tables %}<div class="card">Chưa có bàn nào đang dùng bữa.</div>{% endif %}
+{% for tno, t in tables %}
+<div class="card"><b style="font-size:18px">Bàn {{ tno }}</b> · Tạm tính <b>{{ t.total|vnd }}</b>
+{% for o, items in t.orders %}
+<div style="border-top:1px solid #eee;margin-top:8px;padding-top:8px">
+#{{ o.id }} · {{ o.created[11:16] }} · <span class="badge {{o.status}}">{{ status[o.status] }}</span>
+<ul style="margin:6px 0">{% for i in items %}<li>{{ i.qty }} × {{ i.name }}</li>{% endfor %}</ul>
+{% if o.note %}<i>Ghi chú: {{ o.note }}</i>{% endif %}</div>
+{% endfor %}
+<div class="row" style="margin-top:10px">
+<a class="btn sm" href="/b/{{ cur_bid }}/table/{{ tno }}">➕ Gọi thêm món</a>
+<a class="btn sm gray" href="/bill/{{ tno }}" target="_blank">🧾 Hóa đơn</a>
+<form method="post" action="/admin/pay/{{ tno }}" onsubmit="return confirm('Xác nhận đã thu tiền bàn {{ tno }}?')"><button class="btn sm green">Đã thanh toán</button></form>
+{% if user.role=='admin' %}{% for o, items in t.orders %}<form method="post" action="/kitchen/{{o.id}}/cancelled" onsubmit="return confirm('Hủy đơn #{{o.id}}?')"><button class="btn sm red">Hủy #{{ o.id }}</button></form>{% endfor %}{% endif %}
+</div></div>
+{% endfor %}
+<script>
+let sound=false,last=null;
+function enableSound(){sound=true;document.getElementById('snd').textContent='🔊 Âm báo đang bật';beep();}
+function beep(){const c=new (window.AudioContext||window.webkitAudioContext)(),o=c.createOscillator();
+  o.connect(c.destination);o.frequency.value=880;o.start();setTimeout(()=>{o.stop();c.close()},350);}
+setInterval(async()=>{
+  try{const s=await (await fetch('/api/kitchen/state')).json();
+  if(last&&(s.orders>last.orders||s.calls>last.calls||s.changed!==last.changed)){if(sound)beep();location.reload();}
+  last=s;}catch(e){}
+},4000);
+</script>
+{% endblock %}

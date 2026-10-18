@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block h1 %}⛔ Không có quyền{% endblock %}
+{% block body %}
+<div class="card">Tài khoản <b>{{ user.username }}</b> ({{ ROLES[user.role] }}) không được dùng chức năng này.
+<p><a class="btn" href="/logout">Đăng nhập tài khoản khác</a></p></div>
+{% endblock %}

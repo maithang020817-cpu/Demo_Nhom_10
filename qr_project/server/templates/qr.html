@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block h1 %}🖨️ Mã QR · {{ br.name }}{% endblock %}
+{% block body %}
+<div class="card noprint">
+{% if public %}
+✅ QR đang trỏ tới địa chỉ Internet: <b>{{ base }}</b><br>Khách dùng 4G/5G hay WiFi nào quét cũng vào được.
+{% else %}
+⚠️ QR đang trỏ tới địa chỉ mạng nội bộ <b>{{ base }}</b> — chỉ điện thoại <b>cùng WiFi</b> với máy chủ mới vào được.<br>
+Để mạng nào cũng quét được: chạy server qua Internet (xem README, mục "Chạy qua Internet"), rồi <b>mở trang này bằng địa chỉ Internet đó</b> và in lại QR.
+{% endif %}
+<br><button class="btn" onclick="print()">In</button></div>
+<div class="grid">{% for t in tables %}
+<div class="card"><b>Bàn {{ t }}</b><img src="/qr/{{ br.id }}/{{ t }}.png" alt="QR bàn {{ t }}"></div>{% endfor %}</div>
+{% endblock %}

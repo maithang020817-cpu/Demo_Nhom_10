@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="card"><b>Chọn chi nhánh</b></div>
+{% for b in rows %}<a href="/b/{{b.id}}/" style="text-decoration:none;color:inherit"><div class="card"><b>🏪 {{ b.name }}</b><br><small>{{ b.address }}</small></div></a>{% endfor %}
+<p><a class="btn gray" href="/login">🔐 Nhân viên / Quản lý</a></p>
+{% endblock %}

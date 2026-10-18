@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block h1 %}🔐 Đăng nhập nhân viên{% endblock %}
+{% block body %}
+<form method="post" class="card" autocomplete="off" style="max-width:380px;margin:20px auto">
+{% if err %}<div class="alert">{{ err }}</div>{% endif %}
+<input type="hidden" name="next" value="{{ next }}">
+<p><input id="u" name="username" placeholder="Tên đăng nhập" autocomplete="off" autocapitalize="none" spellcheck="false" readonly required style="width:100%"></p>
+<p><input id="p" name="password" type="password" placeholder="Mật khẩu" autocomplete="new-password" readonly required style="width:100%"></p>
+<button class="btn" style="width:100%">Đăng nhập</button>
+<p style="font-size:13px;color:#666;margin-bottom:0">Khách hàng không cần đăng nhập — chỉ cần quét mã QR trên bàn.</p>
+</form>
+<script>
+/* Chặn trình duyệt tự điền: ô chỉ cho nhập khi người dùng bấm vào, và xóa giá trị tự điền */
+for (const id of ['u','p']) {
+  const el = document.getElementById(id);
+  el.value = '';
+  el.addEventListener('focus', () => el.removeAttribute('readonly'));
+}
+setTimeout(() => { for (const id of ['u','p']) { const e=document.getElementById(id); if(e.hasAttribute('readonly')) e.value=''; } }, 300);
+</script>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block h1 %}📊 Tổng quan{% endblock %}
+{% block body %}
+<div class="stats">
+<div class="stat">Doanh thu hôm nay<b>{{ revenue|vnd }}</b></div>
+<div class="stat">Số đơn hôm nay<b>{{ n_orders }}</b></div>
+<div class="stat">Chưa thanh toán<b>{{ unpaid|vnd }}</b></div></div>
+<div class="card" style="margin-top:12px"><b>Doanh thu 7 ngày (chi nhánh đang chọn)</b>
+{% for d in days %}<div class="barrow"><span style="width:78px">{{ d.d[5:] }}</span>
+<div class="fill" style="width:{{ (d.t/mx*100)|int }}%"></div><span>{{ d.t|vnd }}</span></div>
+{% else %}<p>Chưa có dữ liệu.</p>{% endfor %}</div>
+<div class="card"><b>🏆 Món bán chạy</b>
+{% for t in top %}<div>{{ loop.index }}. {{ t.name }} — {{ t.q }} phần</div>{% else %}<p>Chưa có dữ liệu.</p>{% endfor %}</div>
+<div class="card"><b>🏪 Toàn chuỗi hôm nay</b>
+{% for name, rev, n in chain %}<div>{{ name }}: <b>{{ rev|vnd }}</b> · {{ n }} đơn</div>{% endfor %}</div>
+{% endblock %}

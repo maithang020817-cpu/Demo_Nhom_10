@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block h1 %}🏪 Chi nhánh & tài khoản nhận tiền{% endblock %}
+{% macro fields(r) %}
+<div class="row"><input name="name" placeholder="Tên chi nhánh" value="{{ r.name if r }}" required>
+<input name="address" placeholder="Địa chỉ" value="{{ r.address if r }}" style="flex:1">
+<input name="tables" type="number" placeholder="Số bàn" value="{{ r.tables if r else 10 }}" style="width:80px"></div>
+<div class="row"><select name="bank_bin">{% for b,n in banks.items() %}<option value="{{b}}" {{ 'selected' if r and r.bank_bin==b }}>{{ n }}</option>{% endfor %}</select>
+<input name="bank_account" placeholder="Số tài khoản" value="{{ r.bank_account if r }}" required>
+<input name="bank_holder" placeholder="Tên chủ TK (IN HOA)" value="{{ r.bank_holder if r }}" required></div>
+{% endmacro %}
+{% block body %}
+<form method="post" class="card"><b>➕ Thêm chi nhánh</b> <small>(sao chép thực đơn của chi nhánh đang chọn)</small>
+{{ fields(none) }}<button class="btn sm">Thêm</button></form>
+{% for r in rows %}
+<form method="post" class="card"><b>#{{ r.id }}</b><input type="hidden" name="id" value="{{ r.id }}">
+{{ fields(r) }}<button class="btn sm">Lưu</button></form>
+{% endfor %}
+{% endblock %}

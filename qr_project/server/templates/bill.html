@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block h1 %}🧾 Hóa đơn bàn {{ table_no }}{% endblock %}
+{% block body %}
+<div class="card"><p style="text-align:center"><b>{{ br.name }}</b><br><small>{{ br.address }}</small></p>
+<table class="bill">
+{% for n,p,q in lines %}<tr><td>{{ n }}</td><td>{{ q }} × {{ p|vnd }}</td><td align="right">{{ (p*q)|vnd }}</td></tr>{% endfor %}
+<tr><td colspan="2"><b>TỔNG CỘNG</b></td><td align="right"><b>{{ total|vnd }}</b></td></tr></table>
+<p style="text-align:center">Cảm ơn quý khách!</p></div>
+<button class="btn noprint" onclick="print()">🖨️ In</button>
+{% endblock %}

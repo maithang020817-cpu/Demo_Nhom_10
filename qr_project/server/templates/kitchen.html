@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block h1 %}👨‍🍳 Màn hình bếp{% endblock %}
+{% block body %}
+<button class="btn gray sm" id="snd" onclick="enableSound()">🔇 Bật âm báo</button>
+{% if user.role=='admin' %}{% for c in calls %}
+<div class="alert">{{ '💳 Bàn %s báo đã chuyển khoản'|format(c.table_no) if c.kind=='pay' else '🔔 Bàn %s gọi nhân viên'|format(c.table_no) }}
+<form method="post" action="/kitchen/call/{{c.id}}/done" style="display:inline"><button class="btn sm">Đã xử lý</button></form></div>
+{% endfor %}{% endif %}
+{% if not data %}<div class="card">Chưa có đơn nào đang chờ.</div>{% endif %}
+{% for o, items in data %}
+<div class="card">
+  <b>Bàn {{ o.table_no }}</b> · #{{ o.id }} · {{ o.created[11:16] }} · <span class="badge {{o.status}}">{{ status[o.status] }}</span>
+  <ul>{% for i in items %}<li>{{ i.qty }} × {{ i.name }}</li>{% endfor %}</ul>
+  {% if o.note %}<i>Ghi chú: {{ o.note }}</i><br><br>{% endif %}
+  <div class="row">
+  {% if o.status=='new' %}<form method="post" action="/kitchen/{{o.id}}/cooking"><button class="btn">Nhận làm</button></form>{% endif %}
+  <form method="post" action="/kitchen/{{o.id}}/served"><button class="btn green">✅ Đã lên món</button></form>
+  {% if user.role=='admin' %}<form method="post" action="/kitchen/{{o.id}}/cancelled" onsubmit="return confirm('Hủy đơn?')"><button class="btn red">Hủy</button></form>{% endif %}
+  </div>
+</div>
+{% endfor %}
+<script>
+let sound=false,last=null;
+function enableSound(){sound=true;document.getElementById('snd').textContent='🔊 Âm báo đang bật';beep();}
+function beep(){
+  const c=new (window.AudioContext||window.webkitAudioContext)(),o=c.createOscillator();
+  o.connect(c.destination);o.frequency.value=880;o.start();setTimeout(()=>{o.stop();c.close()},350);
+}
+setInterval(async()=>{
+  const s=await (await fetch('/api/kitchen/state')).json();
+  if(last&&(s.orders>last.orders||s.calls>last.calls)){if(sound)beep();location.reload();}
+  last=s;
+},4000);
+</script>
+{% endblock %}
