@@ -1,6 +1,7 @@
 """Goi mon tai ban bang QR - ban day du: nhieu chi nhanh, VietQR, danh gia mon,
 API cho app Android (Kivy).   Chay:  python app.py
 """
+import hmac
 import io
 import json
 import time
@@ -65,6 +66,18 @@ def _secret():
     return open(path).read().strip()
 
 
+def _webhook_key():
+    """Khoa bao mat cho webhook ngan hang (SePay/Casso goi ve /api/payment/webhook).
+    Lay tu bien WEBHOOK_KEY, neu khong thi tu sinh va luu vao file."""
+    if os.environ.get("WEBHOOK_KEY"):
+        return os.environ["WEBHOOK_KEY"]
+    path = os.path.join(DATA_DIR, ".webhook_key")
+    if not os.path.exists(path):
+        with open(path, "w") as fh:
+            fh.write(secrets.token_hex(16))
+    return open(path).read().strip()
+
+
 app.secret_key = _secret()
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["PERMANENT_SESSION_LIFETIME"] = 60 * 60 * 24 * 7
@@ -122,6 +135,11 @@ def init_db():
     CREATE TABLE IF NOT EXISTS users(
         id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE,
         password TEXT, role TEXT, branch_id INTEGER, name TEXT);
+    CREATE TABLE IF NOT EXISTS payments(
+        id INTEGER PRIMARY KEY AUTOINCREMENT, branch_id INTEGER,
+        table_no INTEGER, amount INTEGER, content TEXT, ref TEXT UNIQUE,
+        source TEXT, result TEXT,
+        created TEXT DEFAULT (datetime('now','localtime')));
     CREATE TABLE IF NOT EXISTS ratings(
         id INTEGER PRIMARY KEY AUTOINCREMENT, branch_id INTEGER,
         order_id INTEGER, item_name TEXT, stars INTEGER, comment TEXT,
@@ -387,6 +405,122 @@ def pay_payload(br, table_no):
                                  f"Ban {table_no} CN{br['id']}")
 
 
+# ================= Tu dong doi soat chuyen khoan =================
+RESULT_TEXT = {"matched": "✅ Đã khớp – tự động xác nhận thanh toán",
+               "short": "⚠️ Thiếu tiền – chưa xác nhận",
+               "nothing": "ℹ️ Bàn không có khoản cần thanh toán",
+               "unknown": "❓ Không đọc được nội dung (Bàn x CNy)",
+               "wrong_account": "⛔ Sai số tài khoản nhận",
+               "duplicate": "🔁 Giao dịch trùng"}
+
+
+def parse_transfer(content):
+    """Tim 'Ban <so> CN<so>' trong noi dung chuyen khoan (bo dau, khong phan
+    biet hoa thuong, ngan hang co the bo/them khoang trang) -> (branch, ban)."""
+    s = unicodedata.normalize("NFD", content or "").replace("đ", "d").replace("Đ", "D")
+    s = "".join(c for c in s if unicodedata.category(c) != "Mn").lower()
+    m = re.search(r"ban\s*(\d+)\s*cn\s*(\d+)", s)
+    return (int(m.group(2)), int(m.group(1))) if m else None
+
+
+def settle_payment(amount, content, ref, source, account=None, branch_hint=None):
+    """Doi soat 1 giao dich chuyen khoan vao: neu du tien cho cac don chua tra
+    cua ban do thi danh dau da thanh toan. Tra ve ma ket qua (xem RESULT_TEXT)."""
+    db = get_db()
+    if ref and db.execute("SELECT 1 FROM payments WHERE ref=?", (ref,)).fetchone():
+        return "duplicate"
+    target = parse_transfer(content)
+    bid, table_no = target if target else (branch_hint, None)
+    result = "unknown"
+    if target:
+        br = db.execute("SELECT * FROM branches WHERE id=?", (bid,)).fetchone()
+        if not br:
+            result = "unknown"
+        elif account and str(account) != str(br["bank_account"]):
+            result = "wrong_account"
+        else:
+            total = unpaid_total(bid, table_no)
+            if total <= 0:
+                result = "nothing"
+            elif amount >= total:
+                db.execute("UPDATE orders SET paid=1 WHERE branch_id=? AND "
+                           "table_no=? AND paid=0 AND status!='cancelled'",
+                           (bid, table_no))
+                db.execute("UPDATE calls SET done=1 WHERE branch_id=? AND "
+                           "table_no=? AND kind='pay'", (bid, table_no))
+                result = "matched"
+            else:
+                result = "short"
+    db.execute("INSERT INTO payments(branch_id,table_no,amount,content,ref,"
+               "source,result) VALUES(?,?,?,?,?,?,?)",
+               (bid, table_no, int(amount), (content or "")[:200],
+                ref or None, source, result))
+    db.commit()
+    return result
+
+
+def _webhook_items(data):
+    """Chuan hoa du lieu webhook cua SePay ({...}) hoac Casso ({'data':[...]})."""
+    if isinstance(data, dict) and isinstance(data.get("data"), list):
+        for t in data["data"]:                                   # Casso
+            yield (int(t.get("amount", 0)), t.get("description", ""),
+                   str(t.get("tid") or t.get("id") or ""),
+                   t.get("subAccId") or t.get("bank_sub_acc_id"))
+    elif isinstance(data, dict):                                 # SePay
+        if data.get("transferType", "in") == "in":
+            yield (int(data.get("transferAmount", 0)), data.get("content", ""),
+                   str(data.get("referenceCode") or data.get("id") or ""),
+                   data.get("accountNumber"))
+
+
+@app.route("/api/payment/webhook", methods=["POST"])
+def payment_webhook():
+    auth = request.headers.get("Authorization", "")
+    key = (auth.split(None, 1)[1] if auth.lower().startswith("apikey ") else
+           request.headers.get("X-Api-Key") or request.args.get("key", ""))
+    if not hmac.compare_digest(str(key), _webhook_key()):
+        return jsonify(success=False, error="Sai khóa"), 401
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify(success=False, error="Dữ liệu không hợp lệ"), 400
+    results = []
+    for amount, content, ref, acc in _webhook_items(data):
+        results.append(settle_payment(amount, content, ref, "webhook",
+                                      account=acc))
+    return jsonify(success=True, results=results)
+
+
+@app.route("/admin/payments")
+@need("staff")
+def admin_payments():
+    rows = get_db().execute("SELECT * FROM payments WHERE branch_id=? OR "
+                            "branch_id IS NULL ORDER BY id DESC LIMIT 50",
+                            (cur_branch(),)).fetchall()
+    u = current_user()
+    key = _webhook_key() if u["role"] == "admin" else None
+    return render_template("admin_payments.html", rows=rows, RT=RESULT_TEXT,
+                           key=key, hook=base_url() + "/api/payment/webhook",
+                           bid=cur_branch())
+
+
+@app.route("/admin/payments/simulate", methods=["POST"])
+@need()
+def payments_simulate():
+    """Gia lap 1 tin nhan ngan hang bao tien ve (de demo khi chua noi SePay)."""
+    try:
+        amount = int(request.form.get("amount", "0"))
+    except ValueError:
+        amount = 0
+    content = request.form.get("content", "").strip()
+    if amount <= 0 or not content:
+        flash("Nhập số tiền và nội dung chuyển khoản.")
+    else:
+        r = settle_payment(amount, content, "SIM" + uuid.uuid4().hex[:10],
+                           "mo phong")
+        flash(RESULT_TEXT[r])
+    return redirect(url_for("admin_payments"))
+
+
 def png_response(text):
     buf = io.BytesIO()
     qrcode.make(text).save(buf, format="PNG")
@@ -536,19 +670,25 @@ def order_api(oid):
                        (oid,)).fetchone() is not None
     return jsonify(status=o["status"], status_text=STATUS[o["status"]],
                    total=o["total"], table=o["table_no"], branch=o["branch_id"],
-                   rated=rated, items=[dict(i) for i in items])
+                   rated=rated, paid=bool(o["paid"]),
+                   items=[dict(i) for i in items])
 
 
 @app.route("/api/order/<int:oid>/cancel", methods=["POST"])
-@need()                                  # chi quan tri (admin) moi huy duoc
 def cancel_order(oid):
+    """Khach (khong can dang nhap) chi huy duoc don con 'Moi' va chua thanh toan.
+    Admin huy duoc o moi trang thai mien la chua thanh toan."""
     db = get_db()
-    cur = db.execute("UPDATE orders SET status='cancelled' WHERE id=? AND "
-                     "status!='cancelled' AND paid=0", (oid,))
+    u = current_user()
+    sql = ("UPDATE orders SET status='cancelled' "
+           "WHERE id=? AND status!='cancelled' AND paid=0")
+    if not (u and u["role"] == "admin"):
+        sql += " AND status='new'"
+    cur = db.execute(sql, (oid,))
     db.commit()
     if cur.rowcount:
         return jsonify(ok=True)
-    return jsonify(error="Không hủy được đơn này"), 400
+    return jsonify(error="Không hủy được đơn này (bếp đã nhận làm hoặc đã thanh toán)"), 400
 
 
 @app.route("/api/call", methods=["POST"])

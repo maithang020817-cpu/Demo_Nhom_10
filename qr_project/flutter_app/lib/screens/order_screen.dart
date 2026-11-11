@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../api.dart';
+import '../notifier.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import 'pay_screen.dart';
@@ -36,8 +37,27 @@ class _OrderScreenState extends State<OrderScreen> {
   Future<void> _refresh() async {
     try {
       final i = await Api.order(Session.orderId!);
+      final old = _info;
+      if (old != null) _notifyChanges(old, i);
       if (mounted) setState(() => _info = i);
     } catch (_) {/* mất mạng tạm thời: lần sau thử lại */}
+  }
+
+  /// Đẩy thông báo ra điện thoại khi trạng thái đơn / thanh toán thay đổi.
+  void _notifyChanges(OrderInfo old, OrderInfo now) {
+    if (old.status != now.status) {
+      switch (now.status) {
+        case 'cooking':
+          Notifier.show('Bếp đã nhận đơn', 'Món của bạn đang được chế biến.');
+        case 'served':
+          Notifier.show('Món đã sẵn sàng', 'Chúc bạn ngon miệng!');
+        case 'cancelled':
+          Notifier.show('Đơn đã bị hủy', 'Vui lòng liên hệ nhân viên nếu cần.');
+      }
+    }
+    if (!old.paid && now.paid) {
+      Notifier.show('Thanh toán thành công', 'Cảm ơn bạn đã dùng bữa!');
+    }
   }
 
   void _toast(String m) =>
@@ -132,12 +152,32 @@ class _OrderScreenState extends State<OrderScreen> {
                   ]),
                 ),
               const SizedBox(height: 4),
+              if (o.paid)
+                SoftCard(
+                  color: const Color(0xFFE4FBEA),
+                  child: const Row(children: [
+                    Icon(Icons.verified, color: C.green),
+                    SizedBox(width: 10),
+                    Expanded(
+                        child: Text('Đã thanh toán',
+                            style: TextStyle(fontWeight: FontWeight.w700))),
+                  ]),
+                )
+              else
               FilledButton.icon(
                   onPressed: () => Navigator.push(context,
                       MaterialPageRoute(builder: (_) => const PayScreen())),
                   icon: const Icon(Icons.qr_code_2),
                   label: const Text('Thanh toán VietQR')),
               const SizedBox(height: 10),
+              if (o.status == 'new' && !o.paid) ...[
+                OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(foregroundColor: C.red),
+                    onPressed: _cancel,
+                    icon: const Icon(Icons.cancel_outlined),
+                    label: const Text('Hủy đơn')),
+                const SizedBox(height: 10),
+              ],
               OutlinedButton.icon(
                   onPressed: () => Navigator.pop(context),
                   icon: const Icon(Icons.add),
